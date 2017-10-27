@@ -15,19 +15,17 @@
 
 package net.grandcentrix.thirtyinch;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.InOrder;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import static junit.framework.Assert.assertNotNull;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
+import org.junit.*;
+import org.mockito.*;
+import org.mockito.invocation.*;
+import org.mockito.stubbing.*;
 
 public class TiLifecycleObserverTest {
 
@@ -158,12 +156,12 @@ public class TiLifecycleObserverTest {
         mPresenter.create();
 
         final Object[] beforeLast = states.get(states.size() - 2);
-        assertEquals(beforeLast[0], TiPresenter.State.VIEW_DETACHED);
-        assertEquals(beforeLast[1], false);
+        assertThat(beforeLast[0]).isEqualTo(TiPresenter.State.VIEW_DETACHED);
+        assertThat(beforeLast[1]).isEqualTo(false);
 
         final Object[] last = states.get(states.size() - 1);
-        assertEquals(last[0], TiPresenter.State.VIEW_DETACHED);
-        assertEquals(last[1], true);
+        assertThat(last[0]).isEqualTo(TiPresenter.State.VIEW_DETACHED);
+        assertThat(last[1]).isEqualTo(true);
     }
 
     @Test
@@ -177,18 +175,22 @@ public class TiLifecycleObserverTest {
             }
         });
 
+        assertThat(mPresenter.mLifecycleObservers).hasSize(1);
+
         mPresenter.create();
         mPresenter.attachView(mView);
         mPresenter.detachView();
         mPresenter.destroy();
 
         final Object[] beforeLast = states.get(states.size() - 2);
-        assertEquals(beforeLast[0], TiPresenter.State.DESTROYED);
-        assertEquals(beforeLast[1], false);
+        assertThat(beforeLast[0]).isEqualTo(TiPresenter.State.DESTROYED);
+        assertThat(beforeLast[1]).isEqualTo(false);
 
         final Object[] last = states.get(states.size() - 1);
-        assertEquals(last[0], TiPresenter.State.DESTROYED);
-        assertEquals(last[1], true);
+        assertThat(last[0]).isEqualTo(TiPresenter.State.DESTROYED);
+        assertThat(last[1]).isEqualTo(true);
+
+        assertThat(mPresenter.mLifecycleObservers).isEmpty();
     }
 
     @Test
@@ -205,22 +207,22 @@ public class TiLifecycleObserverTest {
         mPresenter.create();
 
         final Object[] beforeLast = states.get(states.size() - 2);
-        assertEquals(beforeLast[0], TiPresenter.State.VIEW_DETACHED);
-        assertEquals(beforeLast[1], false);
+        assertThat(beforeLast[0]).isEqualTo(TiPresenter.State.VIEW_DETACHED);
+        assertThat(beforeLast[1]).isEqualTo(false);
 
         final Object[] last = states.get(states.size() - 1);
-        assertEquals(last[0], TiPresenter.State.VIEW_DETACHED);
-        assertEquals(last[1], true);
+        assertThat(last[0]).isEqualTo(TiPresenter.State.VIEW_DETACHED);
+        assertThat(last[1]).isEqualTo(true);
 
         removable.remove();
 
         mPresenter.attachView(mView);
 
         final Object[] beforeLast2 = states.get(states.size() - 2);
-        assertNotEquals(beforeLast2[0], TiPresenter.State.VIEW_ATTACHED);
+        assertThat(beforeLast2[0]).isNotEqualTo(TiPresenter.State.VIEW_ATTACHED);
 
         final Object[] last2 = states.get(states.size() - 1);
-        assertNotEquals(last2[0], TiPresenter.State.VIEW_ATTACHED);
+        assertThat(last2[0]).isNotEqualTo(TiPresenter.State.VIEW_ATTACHED);
     }
 
     @Test
@@ -235,17 +237,53 @@ public class TiLifecycleObserverTest {
         };
 
         final Removable removable = mPresenter.addLifecycleObserver(observer);
-        assertEquals(1, mPresenter.mLifecycleObservers.size());
+        assertThat(mPresenter.mLifecycleObservers).hasSize(1);
         removable.remove();
-        assertEquals(0, mPresenter.mLifecycleObservers.size());
+        assertThat(mPresenter.mLifecycleObservers).isEmpty();
 
         final Removable removable2 = mPresenter.addLifecycleObserver(observer);
         // remove should only remove once
         removable.remove();
-        assertEquals(1, mPresenter.mLifecycleObservers.size());
+        assertThat(mPresenter.mLifecycleObservers).hasSize(1);
 
         removable2.remove();
-        assertEquals(0, mPresenter.mLifecycleObservers.size());
+        assertThat(mPresenter.mLifecycleObservers).isEmpty();
+    }
+
+    @Test
+    public void testRemoveOtherObserver() throws Exception {
+        mPresenter.create();
+
+        // add observers only for attach event
+        final TiLifecycleObserver observer1 = mock(TiLifecycleObserver.class);
+        mPresenter.addLifecycleObserver(observer1);
+        final TiLifecycleObserver observer2 = mock(TiLifecycleObserver.class);
+        final Removable removable = mPresenter.addLifecycleObserver(observer2);
+
+        // when observer1 receives the first event it unregisters observer2
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(final InvocationOnMock invocation) throws Throwable {
+                removable.remove();
+                return null;
+            }
+        }).when(observer1).onChange(any(TiPresenter.State.class), anyBoolean());
+
+        mPresenter.attachView(mock(TiView.class));
+
+        final InOrder inOrder = inOrder(observer1, observer2);
+
+        //observer 1 receives pre onAttachView event
+        inOrder.verify(observer1).onChange(TiPresenter.State.VIEW_ATTACHED, false);
+
+        // observer2 receives the pre event even when observer1 removed observer2 before observer2 received the pre event
+        inOrder.verify(observer2).onChange(TiPresenter.State.VIEW_ATTACHED, false);
+
+        // observer 1 receives post onAttachView event
+        inOrder.verify(observer1).onChange(TiPresenter.State.VIEW_ATTACHED, true);
+
+        // observer2 never receives the post event, is unregistered at that time
+        verifyNoMoreInteractions(observer2);
     }
 
     @Test
@@ -264,14 +302,14 @@ public class TiLifecycleObserverTest {
         mPresenter.detachView();
 
         final Object[] beforeLast = states.get(states.size() - 2);
-        assertEquals(beforeLast[0], TiPresenter.State.VIEW_DETACHED);
-        assertEquals(beforeLast[1], false);
-        assertNotNull(beforeLast[2]);
+        assertThat(beforeLast[0]).isEqualTo(TiPresenter.State.VIEW_DETACHED);
+        assertThat(beforeLast[1]).isEqualTo(false);
+        assertThat(beforeLast[2]).isNotNull();
 
         final Object[] last = states.get(states.size() - 1);
-        assertEquals(last[0], TiPresenter.State.VIEW_DETACHED);
-        assertEquals(last[1], true);
-        assertNotNull(last[2]);
+        assertThat(last[0]).isEqualTo(TiPresenter.State.VIEW_DETACHED);
+        assertThat(last[1]).isEqualTo(true);
+        assertThat(last[2]).isNotNull();
     }
 
     @Test
@@ -289,13 +327,13 @@ public class TiLifecycleObserverTest {
         mPresenter.attachView(mView);
 
         final Object[] beforeLast = states.get(states.size() - 2);
-        assertEquals(beforeLast[0], TiPresenter.State.VIEW_ATTACHED);
-        assertEquals(beforeLast[1], false);
-        assertNotNull(beforeLast[2]);
+        assertThat(beforeLast[0]).isEqualTo(TiPresenter.State.VIEW_ATTACHED);
+        assertThat(beforeLast[1]).isEqualTo(false);
+        assertThat(beforeLast[2]).isNotNull();
 
         final Object[] last = states.get(states.size() - 1);
-        assertEquals(last[0], TiPresenter.State.VIEW_ATTACHED);
-        assertEquals(last[1], true);
-        assertNotNull(last[2]);
+        assertThat(last[0]).isEqualTo(TiPresenter.State.VIEW_ATTACHED);
+        assertThat(last[1]).isEqualTo(true);
+        assertThat(last[2]).isNotNull();
     }
 }

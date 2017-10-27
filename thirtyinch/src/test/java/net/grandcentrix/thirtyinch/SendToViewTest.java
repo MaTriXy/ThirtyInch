@@ -16,26 +16,18 @@
 package net.grandcentrix.thirtyinch;
 
 
-import org.junit.Test;
-import org.mockito.InOrder;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import android.support.annotation.NonNull;
-
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-
-import static junit.framework.Assert.assertNotSame;
-import static junit.framework.Assert.assertTrue;
-import static org.assertj.core.api.Java6Assertions.assertThat;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import org.junit.*;
+import org.mockito.*;
 
 public class SendToViewTest {
 
@@ -64,7 +56,7 @@ public class SendToViewTest {
         final TestPresenter presenter = new TestPresenter();
         presenter.create();
         presenter.setUiThreadExecutor(mImmediatelySameThread);
-        assertThat(presenter.getQueuedViewActions()).hasSize(0);
+        assertThat(presenter.getQueuedViewActions()).isEmpty();
 
         presenter.sendToView(new ViewAction<TestView>() {
             @Override
@@ -89,7 +81,7 @@ public class SendToViewTest {
         final TestView view = mock(TestView.class);
         presenter.attachView(view);
 
-        assertThat(presenter.getQueuedViewActions()).hasSize(0);
+        assertThat(presenter.getQueuedViewActions()).isEmpty();
 
         final InOrder inOrder = inOrder(view);
         inOrder.verify(view).doSomething3();
@@ -124,9 +116,10 @@ public class SendToViewTest {
             public void call(final TiView tiView) {
                 // Then the work gets executed on the ui thread
                 final Thread currentThread = Thread.currentThread();
-                assertNotSame(testThread, currentThread);
-                assertTrue("executed on wrong thread",
-                        "test ui thread".equals(currentThread.getName()));
+                assertThat(testThread).isNotSameAs(currentThread);
+                assertThat("test ui thread")
+                        .as("executed on wrong thread")
+                        .isEqualTo(currentThread.getName());
                 latch.countDown();
             }
         });
@@ -140,7 +133,7 @@ public class SendToViewTest {
         final TestPresenter presenter = new TestPresenter();
         presenter.create();
         presenter.setUiThreadExecutor(mImmediatelySameThread);
-        assertThat(presenter.getQueuedViewActions()).hasSize(0);
+        assertThat(presenter.getQueuedViewActions()).isEmpty();
 
         final TestView view = mock(TestView.class);
         presenter.attachView(view);
@@ -151,7 +144,7 @@ public class SendToViewTest {
                 view.doSomething1();
             }
         });
-        assertThat(presenter.getQueuedViewActions()).hasSize(0);
+        assertThat(presenter.getQueuedViewActions()).isEmpty();
         verify(view).doSomething1();
     }
 
@@ -160,7 +153,7 @@ public class SendToViewTest {
         final TestPresenter presenter = new TestPresenter();
         presenter.create();
         presenter.setUiThreadExecutor(mImmediatelySameThread);
-        assertThat(presenter.getQueuedViewActions()).hasSize(0);
+        assertThat(presenter.getQueuedViewActions()).isEmpty();
 
         presenter.sendToView(new ViewAction<TestView>() {
             @Override
@@ -174,7 +167,7 @@ public class SendToViewTest {
         presenter.attachView(view);
         verify(view).doSomething1();
 
-        assertThat(presenter.getQueuedViewActions()).hasSize(0);
+        assertThat(presenter.getQueuedViewActions()).isEmpty();
     }
 
     @Test
@@ -182,7 +175,7 @@ public class SendToViewTest {
         final TestPresenter presenter = new TestPresenter();
         presenter.create();
         presenter.setUiThreadExecutor(mImmediatelySameThread);
-        assertThat(presenter.getQueuedViewActions()).hasSize(0);
+        assertThat(presenter.getQueuedViewActions()).isEmpty();
 
         final TestView view = mock(TestView.class);
         presenter.attachView(view);
@@ -200,7 +193,7 @@ public class SendToViewTest {
         presenter.attachView(view);
 
         verify(view).doSomething1();
-        assertThat(presenter.getQueuedViewActions()).hasSize(0);
+        assertThat(presenter.getQueuedViewActions()).isEmpty();
 
         presenter.detachView();
 

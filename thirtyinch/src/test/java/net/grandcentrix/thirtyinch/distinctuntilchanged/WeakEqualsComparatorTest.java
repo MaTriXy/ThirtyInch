@@ -15,19 +15,17 @@
 
 package net.grandcentrix.thirtyinch.distinctuntilchanged;
 
-import org.junit.Test;
+import static org.assertj.core.api.Assertions.*;
 
-import static junit.framework.Assert.assertFalse;
-import static junit.framework.Assert.assertTrue;
-import static org.assertj.core.api.Java6Assertions.assertThat;
+import org.junit.*;
 
 public class WeakEqualsComparatorTest {
 
     @Test
     public void different() throws Exception {
         final WeakEqualsComparator comparator = new WeakEqualsComparator();
-        assertFalse(comparator.compareWith(new Object[]{"arg1"}));
-        assertFalse(comparator.compareWith(new Object[]{"arg2"}));
+        assertThat(comparator.compareWith(new Object[]{"arg1"})).isFalse();
+        assertThat(comparator.compareWith(new Object[]{"arg2"})).isFalse();
     }
 
     @Test
@@ -37,29 +35,29 @@ public class WeakEqualsComparatorTest {
 
         final Object arg = new Object();
 
-        assertFalse(comparator.compareWith(new Object[]{arg}));
-        assertTrue(comparator.compareWith(new Object[]{arg}));
+        assertThat(comparator.compareWith(new Object[]{arg})).isFalse();
+        assertThat(comparator.compareWith(new Object[]{arg})).isTrue();
 
         // simulate drop of reference
         comparator.mLastParameters.clear();
 
-        assertFalse(comparator.compareWith(new Object[]{arg}));
+        assertThat(comparator.compareWith(new Object[]{arg})).isFalse();
     }
 
     @Test
     public void initialize() throws Exception {
 
         final WeakEqualsComparator comparator = new WeakEqualsComparator();
-        assertFalse(comparator.compareWith(new Object[]{"arg1"}));
+        assertThat(comparator.compareWith(new Object[]{"arg1"})).isFalse();
     }
 
     @Test
     public void same() throws Exception {
         final WeakEqualsComparator comparator = new WeakEqualsComparator();
 
-        assertFalse(comparator.compareWith(new Object[]{"arg1"}));
-        assertTrue(comparator.compareWith(new Object[]{"arg1"}));
-        assertTrue(comparator.compareWith(new Object[]{"arg1"}));
+        assertThat(comparator.compareWith(new Object[]{"arg1"})).isFalse();
+        assertThat(comparator.compareWith(new Object[]{"arg1"})).isTrue();
+        assertThat(comparator.compareWith(new Object[]{"arg1"})).isTrue();
 
     }
 

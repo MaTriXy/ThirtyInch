@@ -15,16 +15,11 @@
 
 package net.grandcentrix.thirtyinch.distinctuntilchanged;
 
-import net.grandcentrix.thirtyinch.TiView;
-
-import org.junit.Before;
-import org.junit.Test;
+import static org.assertj.core.api.Assertions.*;
 
 import java.lang.reflect.Method;
-
-import static junit.framework.Assert.assertEquals;
-import static org.assertj.core.api.Java6Assertions.assertThat;
-import static org.assertj.core.api.Java6Assertions.fail;
+import net.grandcentrix.thirtyinch.TiView;
+import org.junit.*;
 
 public class DistinctUntilChangedInvocationHandlerTest {
 
@@ -171,7 +166,7 @@ public class DistinctUntilChangedInvocationHandlerTest {
         //when
         handler.handleInvocation(null, method, args);
         handler.handleInvocation(null, method, args);
-        assertEquals(1, ducView.callCount);
+        assertThat(ducView.callCount).isEqualTo(1);
 
         //simulate reference dropped
         handler.clearCache();
@@ -180,7 +175,7 @@ public class DistinctUntilChangedInvocationHandlerTest {
         handler.handleInvocation(null, method, new Object[]{"new param"});
 
         //then
-        assertEquals(2, ducView.callCount);
+        assertThat(ducView.callCount).isEqualTo(2);
     }
 
     @Test
@@ -193,7 +188,7 @@ public class DistinctUntilChangedInvocationHandlerTest {
         handler.handleInvocation(null, method, new Object[]{"test string 1"});
 
         //then
-        assertEquals(1, ducView.callCount);
+        assertThat(ducView.callCount).isEqualTo(1);
     }
 
     @Test
@@ -207,19 +202,19 @@ public class DistinctUntilChangedInvocationHandlerTest {
         handler.handleInvocation(null, method, new Object[]{"test string 2"});
 
         //then
-        assertEquals(2, ducView.callCount);
+        assertThat(ducView.callCount).isEqualTo(2);
     }
 
     @Test
     public void testSwallowCall() throws Throwable {
         final Method method = ducView.getClass().getMethod("logDropped", String.class);
 
-        assertEquals(0, ducView.callCount);
+        assertThat(ducView.callCount).isEqualTo(0);
         handler.handleInvocation(null, method, new Object[]{"test string"});
-        assertEquals(1, ducView.callCount);
+        assertThat(ducView.callCount).isEqualTo(1);
 
         handler.handleInvocation(null, method, new Object[]{"test string"});
-        assertEquals(1, ducView.callCount);
+        assertThat(ducView.callCount).isEqualTo(1);
     }
 
     @Test
@@ -230,7 +225,8 @@ public class DistinctUntilChangedInvocationHandlerTest {
             handler.handleInvocation(null, method, new Object[]{"test"});
             fail("did not throw");
         } catch (IllegalStateException e) {
-            assertThat(e).hasMessageContaining("true")
+            assertThat(e)
+                    .hasMessageContaining("true")
                     .hasMessageContaining("initialization");
         }
     }

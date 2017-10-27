@@ -25,19 +25,18 @@ ThirtyInch is available via [jcenter](http://blog.bintray.com/2015/02/09/android
 
 ```gradle
 dependencies {
-    def thirtyinchVersion = '0.8.0-rc3' // prerelease
-    // def thirtyinchVersion = '0.7.1' // stable
+    def thirtyinchVersion = '0.8.5'
     
     // MVP for activity and fragment
     compile "net.grandcentrix.thirtyinch:thirtyinch:$thirtyinchVersion"
+    // We only provid AppCompat so you have to include it by yourself
+    compile "com.android.support:appcompat-v7:$appCompatVersion"
     
     // rx (1 or 2) extension
     compile "net.grandcentrix.thirtyinch:thirtyinch-rx:$thirtyinchVersion"
     compile "net.grandcentrix.thirtyinch:thirtyinch-rx2:$thirtyinchVersion"
     
-    // test extension
-    testCompile "net.grandcentrix.thirtyinch:thirtyinch-test:$thirtyinchVersion"
-    
+    compile "net.grandcentrix.thirtyinch:thirtyinch-logginginterceptor:$thirtyinchVersion"
      
     // CompositeAndroid plugin
     // When you are using ThirtyInch with the CompositeAndroid extension you have to manually 
@@ -54,7 +53,6 @@ dependencies {
 ## [ThirtyInch sample project](https://github.com/passsy/thirtyinch-sample) (work in progress)
 
 There is a sample implementation based on the [Android Architecture Blueprints TODO app](https://github.com/googlesamples/android-architecture) which can be found here: [ThirtyInch sample project](https://github.com/passsy/thirtyinch-sample) (work in progress)
-
 
 ## Hello World MVP example with ThirtyInch
 
@@ -104,7 +102,7 @@ public class HelloWorldPresenter extends TiPresenter<HelloWorldView> {
     @Override    
     protected void onAttachView(@NonNull final HelloWorldView view) {
         super.onAttachView(view);
-        getView().showText("Hello World!");
+        view.showText("Hello World!");
     }
 }
 
@@ -172,7 +170,6 @@ public class HelloWorldPresenter extends TiPresenter<HelloWorldView> {
     public static final TiConfiguration PRESENTER_CONFIG = 
             new TiConfiguration.Builder()
                 .setRetainPresenterEnabled(true) 
-                .setUseStaticSaviorToRetain(true)
                 .setCallOnMainThreadInterceptorEnabled(true)
                 .setDistinctUntilChangedInterceptorEnabled(true)
                 .build();
@@ -246,11 +243,12 @@ public class HelloWorldActivity extends TiActivity<HelloWorldPresenter, HelloWor
         implements HelloWorldView {
 
     public HelloWorldActivity() {
-        addBindViewInterceptor(new MyInterceptor());
+        addBindViewInterceptor(new LoggingInterceptor());
     }
 }
 ```
 
+`LoggingInterceptor` is available as module and logs all calls to the view.
 
 ### [RxJava](https://github.com/ReactiveX/RxJava)
 
@@ -317,48 +315,7 @@ public class HelloWorldActivity extends CompositeActivity implements HelloWorldV
 }
 ```
 
-Yes you have to extends `CompositeActivity`, but that's the last level of inheritance you'll ever need.
-
-## Versions
-
-
-##### Version 0.7.1 `07.09.16`
-- add missing `TiActivity#getPresenter()`
-
-##### Version 0.7.0 `04.09.16`
-- `TiConfiguration`
-- Presenter LifecycleObservers
-- ViewBindingInterceptors
-- `TiActivityDelegate` for code sharing
-- separate Rx module
-- separate Test module
-- public release, projects using `Ti`: ∞
-
-##### Version 0.6 `11.06.16`
-- Tests
-- Smaller bugfixes and minor breaking changes
-
-##### Version 0.5 `03.05.16`
-- plugin for CompositeAndroid
-- Clean usage syntax by automatically using the `TiActivity` as the `TiView`
-- Projects using `Ti`: 6
-
-##### Version 0.4 `12.05.16`
-- Extracted into standalone library
-- Rebranded to ThirtyInch
-- Projects using `Ti`: 3
-
-##### Version 0.3 `19.02.16`
-- CallOnMainThread annotation
-- fix "Don't keep activities" with `PresenterSavior`
-
-##### Version 0.2 `02.09.15`
-- stabilize Activity and Fragment support
-
-##### Version 0.1 `10.04.15`
-- first configuration change surviving Presenter
-- heavy usage or RxJava
-
+Yes you have to extend `CompositeActivity`, but that's the last level of inheritance you'll ever need.
 
 # License
 

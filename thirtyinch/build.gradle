@@ -21,6 +21,7 @@ android {
         versionCode VERSION_CODE
         versionName VERSION_NAME
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles 'proguard-rules.txt'
     }
     buildTypes {
         release {
@@ -38,6 +39,9 @@ android {
     lintOptions {
         abortOnError false
     }
+    packagingOptions {
+        exclude 'META-INF/LICENSE'
+    }
 }
 
 dependencies {
@@ -47,14 +51,13 @@ dependencies {
     testCompile "org.mockito:mockito-core:$mockitoVersion"
     testCompile "org.assertj:assertj-core:$assertjVersion"
 
-    androidTestCompile 'com.android.support.test:runner:0.5'
+    androidTestCompile "com.android.support.test:runner:$supportTestVersion"
     androidTestCompile "org.mockito:mockito-core:$mockitoVersion"
+    androidTestCompile "org.assertj:assertj-core:$assertjVersion"
 }
 
-// usage:
-// ./gradlew clean build bintrayUpload -PbintrayUser=BINTRAY_USERNAME -PbintrayKey=BINTRAY_KEY -PdryRun=true
 publish {
-    userOrg = 'passsy'
+    userOrg = 'grandcentrix'
     groupId = 'net.grandcentrix.thirtyinch'
     publishVersion = VERSION_NAME
     artifactId = 'thirtyinch'

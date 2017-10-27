@@ -15,6 +15,19 @@
 
 package net.grandcentrix.thirtyinch;
 
+import android.os.Bundle;
+import android.support.annotation.CallSuper;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.app.BackstackReader;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import java.util.List;
+import java.util.concurrent.Executor;
 import net.grandcentrix.thirtyinch.internal.DelegatedTiFragment;
 import net.grandcentrix.thirtyinch.internal.InterceptableViewBinder;
 import net.grandcentrix.thirtyinch.internal.PresenterAccessor;
@@ -24,21 +37,74 @@ import net.grandcentrix.thirtyinch.internal.TiLoggingTagProvider;
 import net.grandcentrix.thirtyinch.internal.TiPresenterProvider;
 import net.grandcentrix.thirtyinch.internal.TiViewProvider;
 import net.grandcentrix.thirtyinch.internal.UiThreadExecutor;
-import net.grandcentrix.thirtyinch.util.AndroidDeveloperOptions;
 import net.grandcentrix.thirtyinch.util.AnnotationUtil;
 
-import android.os.Bundle;
-import android.support.annotation.CallSuper;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-
-import java.util.List;
-import java.util.concurrent.Executor;
-
+/**
+ * An Fragment which has a {@link TiPresenter} to build the Model View Presenter architecture on
+ * Android.
+ *
+ * <p>
+ * The {@link TiPresenter} will be created in {@link #providePresenter()} called in
+ * {@link #onCreate(Bundle)}. Depending on the {@link TiConfiguration} passed into the
+ * {@link TiPresenter#TiPresenter(TiConfiguration)} constructor the {@link TiPresenter} survives
+ * orientation changes (default).
+ * </p>
+ * <p>
+ * The {@link TiPresenter} requires a interface to communicate with the View. Normally the Activity
+ * implements the View interface (which must extend {@link TiView}) and is returned by default
+ * from {@link #provideView()}.
+ * </p>
+ * <p>
+ * The associated {@link TiPresenter} only lives when the {@link TiFragment} is added to the
+ * {@link FragmentManager}. When {@link FragmentTransaction#remove(Fragment)} or {@link
+ * FragmentTransaction#replace(int, Fragment)} results in removing this {@link TiFragment} from the
+ * {@link FragmentManager} the {@link TiPresenter} gets destroyed. When the same {@link TiFragment}
+ * instance will be added again a new {@link TiPresenter} will be created by calling {@link
+ * #providePresenter()}.
+ * </p>
+ * <p>
+ * The {@link TiPresenter} even survives when the {@link TiFragment} is in the
+ * {@link FragmentManager} backstack. When the hosting Activity gets finished the
+ * {@link TiPresenter} will be destroyed accordingly.
+ * </p>
+ * <p>
+ * Using {@code setRetainInstance(true)} is not allowed as it causes many troubles. You should favor
+ * the dumb view pattern and move all your state into the {@link TiPresenter}.
+ * </p>
+ *
+ * <p>
+ * Example:
+ * <code>
+ * <pre>
+ * public class MyFragment extends TiFragment&lt;MyPresenter, MyView&gt; implements MyView {
+ *
+ *     &#064;Override
+ *     public MyPresenter providePresenter() {
+ *         return new MyPresenter();
+ *     }
+ * }
+ *
+ * public class MyPresenter extends TiPresenter&lt;MyView&gt; {
+ *
+ *     &#064;Override
+ *     protected void onCreate() {
+ *         super.onCreate();
+ *     }
+ * }
+ *
+ * public interface MyView extends TiView {
+ *
+ *     // void showItems(List&lt;Item&gt; items);
+ *
+ *     // Observable&lt;Item&gt; onItemClicked();
+ * }
+ * </pre>
+ * </code>
+ * </p>
+ *
+ * @param <V> the View type, must implement {@link TiView}
+ * @param <P> the Presenter type, must extend {@link TiPresenter}
+ */
 public abstract class TiFragment<P extends TiPresenter<V>, V extends TiView> extends Fragment
         implements DelegatedTiFragment, TiPresenterProvider<P>, TiLoggingTagProvider,
         TiViewProvider<V>, InterceptableViewBinder<V>, PresenterAccessor<P, V> {
@@ -48,14 +114,70 @@ public abstract class TiFragment<P extends TiPresenter<V>, V extends TiView> ext
             + "@" + Integer.toHexString(this.hashCode());
 
     private final TiFragmentDelegate<P, V> mDelegate =
-            new TiFragmentDelegate<>(this, this, this, this, PresenterSavior.INSTANCE);
+            new TiFragmentDelegate<>(this, this, this, this, PresenterSavior.getInstance());
 
     private final UiThreadExecutor mUiThreadExecutor = new UiThreadExecutor();
+
+    @CallSuper
+    @Override
+    public void onCreate(final Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        mDelegate.onCreate_afterSuper(savedInstanceState);
+    }
+
+    @CallSuper
+    @Nullable
+    @Override
+    public View onCreateView(final LayoutInflater inflater, @Nullable final ViewGroup container,
+            @Nullable final Bundle savedInstanceState) {
+        mDelegate.onCreateView_beforeSuper(inflater, container, savedInstanceState);
+        return super.onCreateView(inflater, container, savedInstanceState);
+    }
+
+    @CallSuper
+    @Override
+    public void onStart() {
+        super.onStart();
+        mDelegate.onStart_afterSuper();
+    }
+
+    @CallSuper
+    @Override
+    public void onStop() {
+        mDelegate.onStop_beforeSuper();
+        super.onStop();
+    }
+
+    @CallSuper
+    @Override
+    public void onSaveInstanceState(final Bundle outState) {
+        super.onSaveInstanceState(outState);
+        mDelegate.onSaveInstanceState_afterSuper(outState);
+    }
+
+    @CallSuper
+    @Override
+    public void onDestroyView() {
+        mDelegate.onDestroyView_beforeSuper();
+        super.onDestroyView();
+    }
+
+    @CallSuper
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        mDelegate.onDestroy_afterSuper();
+    }
 
     @NonNull
     @Override
     public final Removable addBindViewInterceptor(@NonNull final BindViewInterceptor interceptor) {
         return mDelegate.addBindViewInterceptor(interceptor);
+    }
+
+    @Override
+    public final Object getHostingContainer() {
+        return getHost();
     }
 
     @Nullable
@@ -99,11 +221,6 @@ public abstract class TiFragment<P extends TiPresenter<V>, V extends TiView> ext
     }
 
     @Override
-    public final boolean isDontKeepActivitiesEnabled() {
-        return AndroidDeveloperOptions.isDontKeepActivitiesEnabled(getActivity());
-    }
-
-    @Override
     public final boolean isFragmentAdded() {
         return isAdded();
     }
@@ -114,64 +231,13 @@ public abstract class TiFragment<P extends TiPresenter<V>, V extends TiView> ext
     }
 
     @Override
-    public final boolean isHostingActivityChangingConfigurations() {
-        return getActivity().isChangingConfigurations();
+    public boolean isFragmentInBackstack() {
+        return BackstackReader.isInBackStack(this);
     }
 
     @Override
-    public final boolean isHostingActivityFinishing() {
-        return getActivity().isFinishing();
-    }
-
-    @CallSuper
-    @Override
-    public void onCreate(final Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        mDelegate.onCreate_afterSuper(savedInstanceState);
-    }
-
-    @CallSuper
-    @Nullable
-    @Override
-    public View onCreateView(final LayoutInflater inflater, @Nullable final ViewGroup container,
-            @Nullable final Bundle savedInstanceState) {
-        mDelegate.onCreateView_beforeSuper(inflater, container, savedInstanceState);
-        return super.onCreateView(inflater, container, savedInstanceState);
-    }
-
-    @CallSuper
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        mDelegate.onDestroy_afterSuper();
-    }
-
-    @CallSuper
-    @Override
-    public void onDestroyView() {
-        mDelegate.onDestroyView_beforeSuper();
-        super.onDestroyView();
-    }
-
-    @CallSuper
-    @Override
-    public void onSaveInstanceState(final Bundle outState) {
-        super.onSaveInstanceState(outState);
-        mDelegate.onSaveInstanceState_afterSuper(outState);
-    }
-
-    @CallSuper
-    @Override
-    public void onStart() {
-        super.onStart();
-        mDelegate.onStart_afterSuper();
-    }
-
-    @CallSuper
-    @Override
-    public void onStop() {
-        mDelegate.onStop_beforeSuper();
-        super.onStop();
+    public boolean isFragmentRemoving() {
+        return isRemoving();
     }
 
     /**
@@ -203,9 +269,17 @@ public abstract class TiFragment<P extends TiPresenter<V>, V extends TiView> ext
         }
     }
 
+    /**
+     * Don't use <code>setRetainInstance(true)</code>, it's designed for headless Fragments only.
+     */
     @Override
-    public final void setFragmentRetainInstance(final boolean retain) {
-        setRetainInstance(retain);
+    public void setRetainInstance(final boolean retain) {
+        if (retain) {
+            throw new IllegalStateException("Retaining TiFragment is not allowed. "
+                    + "setRetainInstance(true) should only be used for headless Fragments. "
+                    + "Move your state into the TiPresenter which survives recreation of TiFragment");
+        }
+        super.setRetainInstance(retain);
     }
 
     @Override

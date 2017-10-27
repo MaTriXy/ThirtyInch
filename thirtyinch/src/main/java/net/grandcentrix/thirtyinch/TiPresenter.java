@@ -16,20 +16,20 @@
 package net.grandcentrix.thirtyinch;
 
 
-import net.grandcentrix.thirtyinch.internal.OneTimeRemovable;
-
 import android.app.Activity;
 import android.content.Intent;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.VisibleForTesting;
 import android.support.v4.app.Fragment;
-
+import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
+import net.grandcentrix.thirtyinch.internal.OneTimeRemovable;
+import net.grandcentrix.thirtyinch.test.TiTestPresenter;
 
 /**
  * Represents the Presenter of the popular Model-View-Presenter design pattern. If used with {@link
@@ -144,7 +144,6 @@ public abstract class TiPresenter<V extends TiView> {
         };
     }
 
-
     /**
      * bind a new view to this presenter.
      *
@@ -231,8 +230,13 @@ public abstract class TiPresenter<V extends TiView> {
      * @see #onDestroy()
      */
     public final void destroy() {
+        if (isViewAttached()) {
+            throw new IllegalStateException(
+                    "view is attached, can't destroy the presenter. First call detachView()");
+        }
+
         if (!isInitialized() || isDestroyed()) {
-            TiLog.w(TAG, "not calling onDestroy(), destroy was already called");
+            TiLog.v(TAG, "not calling onDestroy(), destroy was already called");
             return;
         }
 
@@ -300,7 +304,7 @@ public abstract class TiPresenter<V extends TiView> {
     }
 
     /**
-     * Returns the currently attached view. The view is attached between the lifecycle callbacks
+     * Gets the currently attached view. The view is attached between the lifecycle callbacks
      * {@link #onAttachView(TiView)} and {@link #onSleep()}.
      * <p>
      * If you don't care about the view being attached or detached you should either rethink your
@@ -312,6 +316,25 @@ public abstract class TiPresenter<V extends TiView> {
     @Nullable
     public V getView() {
         return mView;
+    }
+
+    /**
+     * Gets the currently attached view or throws an {@link IllegalStateException} if the view
+     * is not attached. Use this method if you are sure that a view is currently attached to the
+     * presenter. If you're not sure you should better use {@link #sendToView(ViewAction)} where the
+     * action will be executed when the view is attached.
+     *
+     * @return the currently attached view of this presenter
+     */
+    @NonNull
+    public V getViewOrThrow() {
+        final V view = getView();
+        if (view == null) {
+            throw new IllegalStateException(
+                    "The view is currently not attached. Use 'sendToView(ViewAction)' instead.");
+        }
+
+        return view;
     }
 
     public boolean isDestroyed() {
@@ -361,6 +384,55 @@ public abstract class TiPresenter<V extends TiView> {
      */
     public void setUiThreadExecutor(@Nullable final Executor uiThreadExecutor) {
         mUiThreadExecutor = uiThreadExecutor;
+    }
+
+    /**
+     * Creates {@link TiTestPresenter} that simplifies testing by calling the presenter lifecycle
+     * methods automatically in the correct order. It also sets the ui thread Executors which allows
+     * the usage of {@link TiPresenter#sendToView(ViewAction)} in unit test.
+     * <code>
+     * <pre>
+     *    &#64;Test
+     *    public void testLoadData() throws Exception {
+     *        final LoginPresenter loginPresenter = new LoginPresenter();
+     *        final TiTestPresenter<LoginView> testPresenter = loginPresenter.test();
+     *        final LoginView view = testPresenter.attachView(mock(LoginView.class));
+     *
+     *        loginPresenter.onSubmitClicked();
+     *        verify(view).showError("No username entered");
+     *    }
+     *
+     *    public class LoginPresenter extends TiPresenter<LoginView> {
+     *
+     *        public void onSubmitClicked() {
+     *            sendToView(new ViewAction<LoginView>() {
+     *                &#64;Override
+     *                public void call(final LoginView view) {
+     *                    view.showError("No username entered");
+     *                }
+     *            });
+     *        }
+     *    }
+     *
+     *    public interface LoginView extends TiView {
+     *        void showError(String msg);
+     *    }
+     * </pre>
+     * </code>
+     *
+     * <p>
+     * The problem is that {@link TiPresenter#sendToView(ViewAction)} needs a ui executor thread.
+     * Unfortunately a ui executor thread isn't available in unit test. Instead a mock implementation
+     * is provided which executes the actions immediately on the testing thread.
+     * </p>
+     * <p>
+     * This {@link TiTestPresenter} holds the {@link TiPresenter} under test.
+     * </p>
+     *
+     * @return instance of {@link TiTestPresenter}
+     */
+    public TiTestPresenter<V> test() {
+        return new TiTestPresenter<>(this);
     }
 
     @Override
@@ -472,8 +544,8 @@ public abstract class TiPresenter<V extends TiView> {
      * When the view is already attached the action will be executed immediately.
      * <p>
      * This method might be very useful for single actions which invoke function like {@link
-     * Activity#finish()}, {@link Activity#startActivity(Intent)} or showing a {@link
-     * android.widget.Toast} in the view.
+     * Activity#finish()}, {@link Activity#startActivity(Intent)} or showing a {@link Toast} in the
+     * view.
      * <p>
      * <b>But don't overuse it.</b>
      * The action will only be called <b>once</b>.
@@ -554,20 +626,25 @@ public abstract class TiPresenter<V extends TiView> {
             mState = newState;
         }
 
-        switch (newState) {
-            case INITIALIZED:
-            case VIEW_ATTACHED:
-                for (int i = 0; i < mLifecycleObservers.size(); i++) {
-                    mLifecycleObservers.get(i).onChange(newState, hasLifecycleMethodBeenCalled);
-                }
-                break;
+        if (mLifecycleObservers.size() > 0) {
+            // make a local copy to call all observers,
+            // even observers which will been removed by other observers which received this event
+            final List<TiLifecycleObserver> observers = new ArrayList<>(mLifecycleObservers);
+            switch (newState) {
+                case INITIALIZED:
+                case VIEW_ATTACHED:
+                    for (int i = 0; i < observers.size(); i++) {
+                        observers.get(i).onChange(newState, hasLifecycleMethodBeenCalled);
+                    }
+                    break;
 
-            case VIEW_DETACHED:
-            case DESTROYED:
-                // reverse observer order for teardown events; first in, last out
-                for (int i = mLifecycleObservers.size() - 1; i >= 0; i--) {
-                    mLifecycleObservers.get(i).onChange(newState, hasLifecycleMethodBeenCalled);
-                }
+                case VIEW_DETACHED:
+                case DESTROYED:
+                    // reverse observer order for teardown events; first in, last out
+                    for (int i = observers.size() - 1; i >= 0; i--) {
+                        observers.get(i).onChange(newState, hasLifecycleMethodBeenCalled);
+                    }
+            }
         }
     }
 
