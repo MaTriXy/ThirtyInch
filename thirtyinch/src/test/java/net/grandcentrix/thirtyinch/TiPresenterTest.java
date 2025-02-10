@@ -18,7 +18,7 @@ package net.grandcentrix.thirtyinch;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -204,30 +204,6 @@ public class TiPresenterTest {
             assertThat(e)
                     .hasMessageContaining("detachView()")
                     .hasMessageContaining("#onDetachView()");
-        }
-    }
-
-    @Test
-    public void testCallingOnSleepDirectly() throws Exception {
-        try {
-            mPresenter.onSleep();
-            fail("no exception thrown");
-        } catch (IllegalAccessError e) {
-            assertThat(e)
-                    .hasMessageContaining("detachView()")
-                    .hasMessageContaining("#onSleep()");
-        }
-    }
-
-    @Test
-    public void testCallingOnWakeUpDirectly() throws Exception {
-        try {
-            mPresenter.onWakeUp();
-            fail("no exception thrown");
-        } catch (IllegalAccessError e) {
-            assertThat(e)
-                    .hasMessageContaining("attachView(TiView)")
-                    .hasMessageContaining("#onWakeUp()");
         }
     }
 
@@ -427,24 +403,6 @@ public class TiPresenterTest {
     }
 
     @Test
-    public void testSleepSuperNotCalled() throws Exception {
-        TiPresenter<TiView> presenter = new TiPresenter<TiView>() {
-            @Override
-            protected void onSleep() {
-                // Intentionally not calling super.onSleep()
-            }
-        };
-        presenter.create();
-        presenter.attachView(mock(TiView.class));
-        try {
-            presenter.detachView();
-            fail("no exception thrown");
-        } catch (SuperNotCalledException e) {
-            assertThat(e).hasMessageContaining("super.onSleep()");
-        }
-    }
-
-    @Test
     public void testTest_ShouldReturnTiTestPresenter() throws Exception {
         final TiTestPresenter<TiView> test = mPresenter.test();
 
@@ -463,20 +421,4 @@ public class TiPresenterTest {
                 .contains("{view = Mock for TiView, hashCode: ");
     }
 
-    @Test
-    public void testWakeUpSuperNotCalled() throws Exception {
-        TiPresenter<TiView> presenter = new TiPresenter<TiView>() {
-            @Override
-            protected void onWakeUp() {
-                // Intentionally not calling super.onWakeup()
-            }
-        };
-        presenter.create();
-        try {
-            presenter.attachView(mock(TiView.class));
-            fail("no exception thrown");
-        } catch (SuperNotCalledException e) {
-            assertThat(e).hasMessageContaining("super.onWakeUp()");
-        }
-    }
 }

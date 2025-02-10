@@ -1,4 +1,8 @@
-![License](https://img.shields.io/badge/license-Apache%202-green.svg?style=flat) [![Gitter](https://badges.gitter.im/ThirtyInch/gitter.svg)](https://gitter.im/ThirtyInch/Lobby)
+# DEPRECATED - no longer actively maintained
+
+[![Build Status](https://travis-ci.org/grandcentrix/ThirtyInch.svg?branch=master)](https://travis-ci.org/grandcentrix/ThirtyInch)
+![License](https://img.shields.io/badge/license-Apache%202-green.svg?style=flat) 
+[![Gitter](https://badges.gitter.im/ThirtyInch/gitter.svg)](https://gitter.im/ThirtyInch/Lobby)
 # ThirtyInch - a MVP library for Android
 
 
@@ -19,40 +23,47 @@ Read the introduction article on [Medium](https://medium.com/@passsy/thirtyinch-
 See the slides of the latest talk on [Speakerdeck](https://speakerdeck.com/passsy/thirtyinch-living-next-to-the-activity)
 
 
-## Get it [![Download](https://api.bintray.com/packages/passsy/maven/ThirtyInch/images/download.svg) ](https://bintray.com/passsy/maven/ThirtyInch/_latestVersion)
+## Get it
 
-ThirtyInch is available via [jcenter](http://blog.bintray.com/2015/02/09/android-studio-migration-from-maven-central-to-jcenter/)
+### GitHub Packages
 
 ```gradle
+repositories {
+    maven {
+        url = uri("https://maven.pkg.github.com/GCX-HCI/ThirtyInch")
+    }
+}
+
 dependencies {
-    def thirtyinchVersion = '0.8.5'
+    implementation "net.grandcentrix.thirtyinch:thirtyinch:$thirtyinchVersion"
+    implementation "net.grandcentrix.thirtyinch:thirtyinch-rx2:$thirtyinchVersion"
+    implementation "net.grandcentrix.thirtyinch:thirtyinch-logginginterceptor:$thirtyinchVersion"
+    implementation "net.grandcentrix.thirtyinch:thirtyinch-kotlin:$thirtyinchVersion"
+    implementation "net.grandcentrix.thirtyinch:thirtyinch-kotlin-coroutines:$thirtyinchVersion"
     
-    // MVP for activity and fragment
-    compile "net.grandcentrix.thirtyinch:thirtyinch:$thirtyinchVersion"
-    // We only provid AppCompat so you have to include it by yourself
-    compile "com.android.support:appcompat-v7:$appCompatVersion"
-    
-    // rx (1 or 2) extension
-    compile "net.grandcentrix.thirtyinch:thirtyinch-rx:$thirtyinchVersion"
-    compile "net.grandcentrix.thirtyinch:thirtyinch-rx2:$thirtyinchVersion"
-    
-    compile "net.grandcentrix.thirtyinch:thirtyinch-logginginterceptor:$thirtyinchVersion"
-     
-    // CompositeAndroid plugin
-    // When you are using ThirtyInch with the CompositeAndroid extension you have to manually 
-    // include the CompositeAndroid dependency. It has to be the same version as appcompat and 
-    // the support library 
-    
-    compile "net.grandcentrix.thirtyinch:thirtyinch-plugin:$thirtyinchVersion"
-    // def supportLibraryVersion = '24.2.1' <-- use your own version
-    compile "com.pascalwelsch.compositeandroid:activity:$supportLibraryVersion"
+    // Legacy dependencies
+    implementation "net.grandcentrix.thirtyinch:thirtyinch-rx:$thirtyinchVersion"
 }
 ```
 
+### JCenter (deprecated)
 
-## [ThirtyInch sample project](https://github.com/passsy/thirtyinch-sample) (work in progress)
+```gradle
+repositories {
+    jcenter()
+}
 
-There is a sample implementation based on the [Android Architecture Blueprints TODO app](https://github.com/googlesamples/android-architecture) which can be found here: [ThirtyInch sample project](https://github.com/passsy/thirtyinch-sample) (work in progress)
+dependencies {
+    implementation "net.grandcentrix.thirtyinch:thirtyinch:$thirtyinchVersion"
+    implementation "net.grandcentrix.thirtyinch:thirtyinch-rx2:$thirtyinchVersion"
+    implementation "net.grandcentrix.thirtyinch:thirtyinch-logginginterceptor:$thirtyinchVersion"
+    implementation "net.grandcentrix.thirtyinch:thirtyinch-kotlin:$thirtyinchVersion"
+    implementation "net.grandcentrix.thirtyinch:thirtyinch-kotlin-coroutines:$thirtyinchVersion"
+    
+    // Lagacy dependencies
+    implementation "net.grandcentrix.thirtyinch:thirtyinch-rx:$thirtyinchVersion"
+}
+```
 
 ## Hello World MVP example with ThirtyInch
 
@@ -250,6 +261,66 @@ public class HelloWorldActivity extends TiActivity<HelloWorldPresenter, HelloWor
 
 `LoggingInterceptor` is available as module and logs all calls to the view.
 
+### Kotlin
+
+Using Kotlin these days is a no-brainer.
+`ThirtyInch` provides some extension methods to improve itself even further!  
+
+#### SendToView
+
+When using `sendToView`, repeating `it.*` inside the lambda is quite annoying.
+It's clear that the methods are called *on* the view.
+With the kotlin extension `deliverToView` the `TiView` will be give over to the lambda as `this`.
+```kotlin
+class HelloWorldPresenter : TiPresenter<HelloWorldView> {
+
+  override fun onCreate() {
+      // normal java API
+      sendToView {
+          it.showText("Hello World")
+      }
+      
+      // kotlin extension
+      deliverToView {
+          showText("Hello World")
+      }
+  }
+}
+
+interface HelloWorldView : TiView {
+    fun showText(text: String)
+}
+``` 
+Back in the Java days we had to use `it` inside the `sendToView`-lambda.
+
+#### Coroutines
+If you're using Kotlin's Coroutines we offer a `CoroutineScope` that scopes to a presenter's lifecycle.
+
+```kotlin
+class HelloWorldPresenter : TiPresenter<HelloWorldView> {
+
+  private val scope = TiCoroutineScope(this, Dispatchers.Default)
+
+  override fun onCreate() {
+      scope.launch { ... }
+  }
+}
+```
+The created `Job` will automatically be cancelled when the presenter is destroyed.
+
+Alternatively, you can launch jobs that get cancelled when a `TiView` detaches:
+```kotlin
+class HelloWorldPresenter : TiPresenter<HelloWorldView> {
+
+  private val scope = TiCoroutineScope(this, Dispatchers.Default)
+
+  override fun onAttachView(view: HelloWorldView) {
+      scope.launchUntilViewDetaches { ... }
+  }
+}
+```
+However, be careful that `launchUntilViewDetaches` can only be called when there is a view attached!
+
 ### [RxJava](https://github.com/ReactiveX/RxJava)
 
 Using RxJava for networking is very often used.
@@ -286,36 +357,48 @@ public class HelloWorldPresenter extends TiPresenter<HelloWorldView> {
 }
 ```
 
-### [CompositeAndroid](https://github.com/passsy/CompositeAndroid)
+You can make `Disposable` handling even less intrusive in Kotlin. Just create the following interface and make your presenters implement it:
 
-Extending `TiActivity` is probably not what you want because you already have a `BaseActivity`.
-Extending all already existing Activities from `TiActivity` doesn't make sense because they don't use MVP right now.
-[`CompositeAndroid`](https://github.com/passsy/CompositeAndroid) uses composition to add a `TiPresenter` to an `Activity`.
-One line adds the `TiActivityPlugin` and everything works as expected.
+```kotlin
+interface DisposableHandler {
 
-```java
-public class HelloWorldActivity extends CompositeActivity implements HelloWorldView {
+    // Initialize with reference to your TiPresenter instance
+    val disposableHandler: RxTiPresenterDisposableHandler
 
-    public HelloWorldActivity() {
-    
-        // Java 7
-        addPlugin(new TiActivityPlugin<>(
-                new TiPresenterProvider<HelloWorldPresenter>() {
-                    @NonNull
-                    @Override
-                    public HelloWorldPresenter providePresenter() {
-                        return new HelloWorldPresenter();
-                    }
-                }));
+    // Dispose of Disposables dependent on the TiPresenter lifecycle
+    fun Disposable.disposeWhenDestroyed(): Disposable = disposableHandler.manageDisposable(this)
 
-        // Java 8
-        addPlugin(new TiActivityPlugin<HelloWorldPresenter, HelloWorldView>(
-                () -> new HelloWorldPresenter()));
+    // Dispose of Disposables dependent on the TiView attached/detached state
+    fun Disposable.disposeWhenViewDetached(): Disposable = disposableHandler.manageViewDisposable(this)
+} 
+```
+
+Then just implement the interface in your presenter and you can use created extension functions to manage `Disposable`s:
+
+```kotlin
+class MyPresenter : TiPresenter<MyView>(), DisposableHandler {
+
+    override val disposableHandler = RxTiPresenterDisposableHandler(this)
+
+    override fun onCreate() {
+        super.onCreate()
+
+        // Presenter lifecycle dependent Disposable
+        myObservable
+            .subscribe()
+            .disposeWhenDestroyed()
+    }
+
+    override fun onAttachView(view: MyView) {
+        super.onAttachView(view)
+
+        // View attached/detached dependent Disposable
+        myViewObservable
+            .subscribe()
+            .disposeWhenViewDetached()
     }
 }
 ```
-
-Yes you have to extend `CompositeActivity`, but that's the last level of inheritance you'll ever need.
 
 # License
 

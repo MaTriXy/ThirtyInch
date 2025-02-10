@@ -1,26 +1,15 @@
-buildscript {
-    repositories {
-        jcenter()
-    }
-    dependencies {
-        classpath "com.novoda:bintray-release:$bintrayVersion"
-    }
-}
-
 apply plugin: 'com.android.library'
-apply plugin: 'bintray-release'
-apply plugin: 'jacoco-android'
+apply plugin: 'net.grandcentrix.gradle.publish'
 
 android {
     compileSdkVersion COMPILE_SDK_VERSION
-    buildToolsVersion BUILD_TOOLS_VERSION
 
     defaultConfig {
         minSdkVersion MIN_SDK_VERSION
         targetSdkVersion TARGET_SDK_VERSION
         versionCode VERSION_CODE
         versionName VERSION_NAME
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles 'proguard-rules.txt'
     }
     buildTypes {
@@ -28,13 +17,11 @@ android {
             minifyEnabled false
         }
         debug {
-            // output coverage with ./gradlew clean build createDebugCoverageReport
-            testCoverageEnabled true
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_7
-        targetCompatibility JavaVersion.VERSION_1_7
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
     lintOptions {
         abortOnError false
@@ -44,24 +31,34 @@ android {
     }
 }
 
-dependencies {
-    provided "com.android.support:appcompat-v7:$supportLibraryVersion"
-
-    testCompile "junit:junit:$junitVersion"
-    testCompile "org.mockito:mockito-core:$mockitoVersion"
-    testCompile "org.assertj:assertj-core:$assertjVersion"
-
-    androidTestCompile "com.android.support.test:runner:$supportTestVersion"
-    androidTestCompile "org.mockito:mockito-core:$mockitoVersion"
-    androidTestCompile "org.assertj:assertj-core:$assertjVersion"
+configurations {
+    lintChecks
 }
 
-publish {
-    userOrg = 'grandcentrix'
-    groupId = 'net.grandcentrix.thirtyinch'
-    publishVersion = VERSION_NAME
-    artifactId = 'thirtyinch'
-    uploadName = 'ThirtyInch'
-    description = 'a Model View Presenter library for Android'
-    website = 'https://github.com/grandcentrix/ThirtyInch'
+dependencies {
+    compileOnly "androidx.appcompat:appcompat:$androidXAppCompatVersion"
+    compileOnly "androidx.annotation:annotation:$androidXAnnotationVersion"
+
+    testCompileOnly "androidx.annotation:annotation:$androidXAnnotationVersion"
+    testImplementation "junit:junit:$junitVersion"
+    testImplementation "org.mockito:mockito-core:$mockitoVersion"
+    testImplementation "org.assertj:assertj-core:$assertjVersion"
+
+    androidTestImplementation "androidx.test:runner:$androidXTestRunnerVersion"
+    androidTestImplementation "org.mockito:mockito-core:$mockitoVersion"
+    androidTestImplementation "org.assertj:assertj-core:$assertjVersion"
+
+    lintChecks project(path: ":thirtyinch-lint", configuration: "lintChecks")
+}
+
+task copyLintJar(type: Copy) {
+    from(configurations.lintChecks) {
+        rename { String fileName -> 'lint.jar' }
+    }
+    into 'build/intermediates/lint/'
+}
+
+project.afterEvaluate {
+    def compileLintTask = project.tasks.find { it.name == 'compileLint' }
+    compileLintTask.dependsOn(copyLintJar)
 }

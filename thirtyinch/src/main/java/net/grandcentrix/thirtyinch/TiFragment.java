@@ -16,13 +16,13 @@
 package net.grandcentrix.thirtyinch;
 
 import android.os.Bundle;
-import android.support.annotation.CallSuper;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.BackstackReader;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentTransaction;
+import net.grandcentrix.thirtyinch.util.BackstackReader;
+import androidx.annotation.CallSuper;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -128,7 +128,7 @@ public abstract class TiFragment<P extends TiPresenter<V>, V extends TiView> ext
     @CallSuper
     @Nullable
     @Override
-    public View onCreateView(final LayoutInflater inflater, @Nullable final ViewGroup container,
+    public View onCreateView(@NonNull final LayoutInflater inflater, @Nullable final ViewGroup container,
             @Nullable final Bundle savedInstanceState) {
         mDelegate.onCreateView_beforeSuper(inflater, container, savedInstanceState);
         return super.onCreateView(inflater, container, savedInstanceState);
@@ -150,7 +150,7 @@ public abstract class TiFragment<P extends TiPresenter<V>, V extends TiView> ext
 
     @CallSuper
     @Override
-    public void onSaveInstanceState(final Bundle outState) {
+    public void onSaveInstanceState(@NonNull final Bundle outState) {
         super.onSaveInstanceState(outState);
         mDelegate.onSaveInstanceState_afterSuper(outState);
     }

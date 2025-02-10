@@ -17,10 +17,10 @@ package net.grandcentrix.thirtyinch;
 
 import android.content.res.Configuration;
 import android.os.Bundle;
-import android.support.annotation.CallSuper;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v7.app.AppCompatActivity;
+import androidx.annotation.CallSuper;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
 import java.util.List;
 import java.util.concurrent.Executor;
 import net.grandcentrix.thirtyinch.internal.DelegatedTiActivity;
@@ -121,7 +121,7 @@ public abstract class TiActivity<P extends TiPresenter<V>, V extends TiView>
 
     @CallSuper
     @Override
-    protected void onSaveInstanceState(final Bundle outState) {
+    protected void onSaveInstanceState(@NonNull final Bundle outState) {
         super.onSaveInstanceState(outState);
         mDelegate.onSaveInstanceState_afterSuper(outState);
     }
@@ -191,7 +191,7 @@ public abstract class TiActivity<P extends TiPresenter<V>, V extends TiView>
 
     @CallSuper
     @Override
-    public void onConfigurationChanged(final Configuration newConfig) {
+    public void onConfigurationChanged(@NonNull final Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         mDelegate.onConfigurationChanged_afterSuper(newConfig);
     }

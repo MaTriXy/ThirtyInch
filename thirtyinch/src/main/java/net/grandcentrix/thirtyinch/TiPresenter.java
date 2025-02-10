@@ -16,12 +16,15 @@
 package net.grandcentrix.thirtyinch;
 
 
+import static androidx.annotation.RestrictTo.Scope.SUBCLASSES;
+
 import android.app.Activity;
 import android.content.Intent;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.annotation.VisibleForTesting;
-import android.support.v4.app.Fragment;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.RestrictTo;
+import androidx.annotation.VisibleForTesting;
+import androidx.fragment.app.Fragment;
 import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.List;
@@ -187,13 +190,6 @@ public abstract class TiPresenter<V extends TiView> {
             throw new SuperNotCalledException("Presenter " + this
                     + " did not call through to super.onAttachView(TiView)");
         }
-        mCalled = false;
-        TiLog.v(TAG, "deprecated onWakeUp()");
-        onWakeUp();
-        if (!mCalled) {
-            throw new SuperNotCalledException("Presenter " + this
-                    + " did not call through to super.onWakeUp()");
-        }
         moveToState(State.VIEW_ATTACHED, true);
 
         sendPostponedActionsToView(view);
@@ -259,8 +255,6 @@ public abstract class TiPresenter<V extends TiView> {
      * available anymore.
      * Calling detachView in {@code Fragment#onDestroyView()} makes sense because observing a
      * discarded view does not.
-     *
-     * @see #onSleep()
      */
     public final void detachView() {
         if (!isViewAttached()) {
@@ -268,13 +262,6 @@ public abstract class TiPresenter<V extends TiView> {
             return;
         }
         moveToState(State.VIEW_DETACHED, false);
-        mCalled = false;
-        TiLog.v(TAG, "deprecated onSleep()");
-        onSleep();
-        if (!mCalled) {
-            throw new SuperNotCalledException("Presenter " + this
-                    + " did not call through to super.onSleep()");
-        }
         mCalled = false;
         TiLog.v(TAG, "onDetachView()");
         onDetachView();
@@ -305,7 +292,7 @@ public abstract class TiPresenter<V extends TiView> {
 
     /**
      * Gets the currently attached view. The view is attached between the lifecycle callbacks
-     * {@link #onAttachView(TiView)} and {@link #onSleep()}.
+     * {@link #onAttachView(TiView)} and {@link #onDetachView()}.
      * <p>
      * If you don't care about the view being attached or detached you should either rethink your
      * architecture or use {@link #sendToView(ViewAction)} where the action will be executed when
@@ -369,6 +356,43 @@ public abstract class TiPresenter<V extends TiView> {
             } else {
                 throw new IllegalStateException("no ui thread executor available");
             }
+        }
+    }
+
+    /**
+     * Executes the {@link ViewAction} when the view is available on the UI thread.
+     * Once a view is attached the actions get called in the same order they have been added.
+     * When the view is already attached the action will be executed immediately.
+     * <p>
+     * This method might be very useful for single actions which invoke function like {@link
+     * Activity#finish()}, {@link Activity#startActivity(Intent)} or showing a {@link Toast} in the
+     * view.
+     * <p>
+     * <b>But don't overuse it.</b>
+     * The action will only be called <b>once</b>.
+     * When a new view attaches (after a configuration change) it doesn't know about the previously
+     * sent actions.
+     * If your using this method too often you should rethink your architecture.
+     * A model which can be bound to the view in {@link #onAttachView(TiView)} and when changes
+     * happen might be a better solution.
+     * See the <a href="https://github.com/passsy/thirtyinch-sample">thirtyinch-sample</a> project
+     * for ideas.
+     *
+     * @see #sendPostponedActionsToView
+     * @see #onAttachView(TiView)
+     */
+    @RestrictTo(SUBCLASSES)
+    public void sendToView(final ViewAction<V> action) {
+        final V view = getView();
+        if (view != null) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    action.call(view);
+                }
+            });
+        } else {
+            mPostponedViewActions.add(action);
         }
     }
 
@@ -513,65 +537,6 @@ public abstract class TiPresenter<V extends TiView> {
             throw new IllegalAccessError("don't call #onDetachView() directly, call #detachView()");
         }
         mCalled = true;
-    }
-
-    /**
-     * @deprecated use {@link #onDetachView()} instead
-     */
-    @Deprecated
-    protected void onSleep() {
-        if (mCalled) {
-            throw new IllegalAccessError("don't call #onSleep() directly, call #detachView()");
-        }
-        mCalled = true;
-    }
-
-    /**
-     * @deprecated use {@link #onAttachView(TiView)} instead
-     */
-    @Deprecated
-    protected void onWakeUp() {
-        if (mCalled) {
-            throw new IllegalAccessError(
-                    "don't call #onWakeUp() directly, call #attachView(TiView)");
-        }
-        mCalled = true;
-    }
-
-    /**
-     * Executes the {@link ViewAction} when the view is available on the UI thread.
-     * Once a view is attached the actions get called in the same order they have been added.
-     * When the view is already attached the action will be executed immediately.
-     * <p>
-     * This method might be very useful for single actions which invoke function like {@link
-     * Activity#finish()}, {@link Activity#startActivity(Intent)} or showing a {@link Toast} in the
-     * view.
-     * <p>
-     * <b>But don't overuse it.</b>
-     * The action will only be called <b>once</b>.
-     * When a new view attaches (after a configuration change) it doesn't know about the previously
-     * sent actions.
-     * If your using this method too often you should rethink your architecture.
-     * A model which can be bound to the view in {@link #onAttachView(TiView)} and when changes
-     * happen might be a better solution.
-     * See the <a href="https://github.com/passsy/thirtyinch-sample">thirtyinch-sample</a> project
-     * for ideas.
-     *
-     * @see #sendPostponedActionsToView
-     * @see #onAttachView(TiView)
-     */
-    protected void sendToView(final ViewAction<V> action) {
-        final V view = getView();
-        if (view != null) {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    action.call(view);
-                }
-            });
-        } else {
-            mPostponedViewActions.add(action);
-        }
     }
 
     /**
